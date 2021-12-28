@@ -15,6 +15,9 @@ enum class Variant {
     CALLBACKS,        // Request3Callbacks
     SUSPEND,          // Request4Coroutine
     CONCURRENT,       // Request5Concurrent
+    CONCURRENT_MANY,  // 多个线程中执行协程
+    CONCURRENT_STRUCTURE, // 结构化协程
+    CONCURRENT_GLOBAL, // 全局非结构化..
     NOT_CANCELLABLE,  // Request6NotCancellable
     PROGRESS,         // Request6Progress
     CHANNELS          // Request7Channels
@@ -30,7 +33,9 @@ interface Contributors: CoroutineScope {
     fun init() {
         // Start a new loading on 'load' click
         addLoadListener {
+            // save params
             saveParams()
+            // load contributors.
             loadContributors()
         }
 
@@ -53,13 +58,17 @@ interface Contributors: CoroutineScope {
         val service = createGitHubService(req.username, req.password)
 
         val startTime = System.currentTimeMillis()
+        // 判断选择的变种..
         when (getSelectedVariant()) {
             BLOCKING -> { // Blocking UI thread
                 val users = loadContributorsBlocking(service, req)
+                // blocking .. update
                 updateResults(users, startTime)
             }
             BACKGROUND -> { // Blocking a background thread
+                //
                 loadContributorsBackground(service, req) { users ->
+                    // 将更新放入UI线程..
                     SwingUtilities.invokeLater {
                         updateResults(users, startTime)
                     }
@@ -72,16 +81,37 @@ interface Contributors: CoroutineScope {
                     }
                 }
             }
+            // 这种方式仅仅只是使用了suspend 函数,但是没有带来任何的并发性
             SUSPEND -> { // Using coroutines
+                // 这里的协程运行在UI线程之上..
                 launch {
                     val users = loadContributorsSuspend(service, req)
                     updateResults(users, startTime)
                 }.setUpCancellation()
             }
+            // 这种效率和回调相差无几....
             CONCURRENT -> { // Performing requests concurrently
                 launch {
                     val users = loadContributorsConcurrent(service, req)
                     updateResults(users, startTime)
+                }.setUpCancellation()
+            }
+            CONCURRENT_MANY -> {
+              launch {
+                  val users = loadContributorsConcurrentByDispatcher(service,req)
+                  updateResults(users,startTime)
+              }.setUpCancellation()
+            }
+            CONCURRENT_STRUCTURE -> {
+                launch {
+                    val users = loadContributorsConcurrentByDispatcher1(service,req)
+                    updateResults(users,startTime)
+                }.setUpCancellation()
+            }
+            CONCURRENT_GLOBAL -> {
+                launch {
+                    val users = loadContributorsConcurrentByDispatcher2(service,req)
+                    updateResults(users,startTime)
                 }.setUpCancellation()
             }
             NOT_CANCELLABLE -> { // Performing requests in a non-cancellable way
@@ -93,6 +123,7 @@ interface Contributors: CoroutineScope {
             PROGRESS -> { // Showing progress
                 launch(Dispatchers.Default) {
                     loadContributorsProgress(service, req) { users, completed ->
+                        // 仅仅在主线程更新中间状态和数据
                         withContext(Dispatchers.Main) {
                             updateResults(users, startTime, completed)
                         }
@@ -102,6 +133,7 @@ interface Contributors: CoroutineScope {
             CHANNELS -> {  // Performing requests concurrently and showing progress
                 launch(Dispatchers.Default) {
                     loadContributorsChannels(service, req) { users, completed ->
+                        // 仅在主线程工作,协同工作,效率较高...
                         withContext(Dispatchers.Main) {
                             updateResults(users, startTime, completed)
                         }
@@ -148,7 +180,7 @@ interface Contributors: CoroutineScope {
                 }
         setLoadingStatus(text, status == IN_PROGRESS)
     }
-
+// 能够相应cancel
     private fun Job.setUpCancellation() {
         // make active the 'cancel' button
         setActionsStatus(newLoadingEnabled = false, cancellationEnabled = true)
@@ -165,7 +197,9 @@ interface Contributors: CoroutineScope {
         // update the status and remove the listener after the loading job is completed
         launch {
             loadingJob.join()
+            // 设置活动状态...
             setActionsStatus(newLoadingEnabled = true)
+            // 移除cancelListener. 因为不需要了..
             removeCancelListener(listener)
         }
     }
