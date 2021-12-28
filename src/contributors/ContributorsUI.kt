@@ -67,6 +67,8 @@ class ContributorsUI : JFrame("GitHub Contributors"), Contributors {
         else {
             log.info("Clearing result")
         }
+        log.info("refresh user infos!")
+        // 将它们转为primitiveArray
         resultsModel.setDataVector(users.map {
             arrayOf(it.login, it.contributions)
         }.toTypedArray(), COLUMNS)

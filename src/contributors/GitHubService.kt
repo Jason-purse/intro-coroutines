@@ -12,6 +12,9 @@ import retrofit2.Retrofit
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.http.GET
 import retrofit2.http.Path
+import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.SocketAddress
 import java.util.Base64
 
 interface GitHubService {
@@ -25,6 +28,20 @@ interface GitHubService {
         @Path("owner") owner: String,
         @Path("repo") repo: String
     ): Call<List<User>>
+
+
+    // 现在使用RxJava的方式,取消Call 返回结果..
+    // 自己检测结果和异常
+    @GET("orgs/{org}/repos?per_page=100")
+    suspend fun getOrgRepos(
+        @Path("org") org: String
+    ): Response<List<Repo>>
+    // 自己检测结果和异常..
+    @GET("repos/{owner}/{repo}/contributors?per_page=100")
+    suspend fun getRepoContributors(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String
+    ): Response<List<User>>
 }
 
 @Serializable
@@ -48,12 +65,20 @@ data class RequestData(
 
 @OptIn(ExperimentalSerializationApi::class)
 fun createGitHubService(username: String, password: String): GitHubService {
+    // 编码base64
     val authToken = "Basic " + Base64.getEncoder().encode("$username:$password".toByteArray()).toString(Charsets.UTF_8)
+    // okHttpClient
+    // 开启代理...
     val httpClient = OkHttpClient.Builder()
+        .proxy(
+            Proxy(Proxy.Type.HTTP,InetSocketAddress("127.0.0.1",10809))
+        )
         .addInterceptor { chain ->
             val original = chain.request()
+            // 接受形式
             val builder = original.newBuilder()
                 .header("Accept", "application/vnd.github.v3+json")
+                    // 认证token
                 .header("Authorization", authToken)
             val request = builder.build()
             chain.proceed(request)
@@ -61,8 +86,10 @@ fun createGitHubService(username: String, password: String): GitHubService {
         .build()
 
     val contentType = "application/json".toMediaType()
+    // retrofit 处理...
     val retrofit = Retrofit.Builder()
         .baseUrl("https://api.github.com")
+        // 转换器工厂..
         .addConverterFactory(Json { ignoreUnknownKeys = true }.asConverterFactory(contentType))
         .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
         .client(httpClient)
