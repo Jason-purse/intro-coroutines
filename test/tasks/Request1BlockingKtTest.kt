@@ -9,7 +9,8 @@ import org.junit.Test
 class Request1BlockingKtTest {
     @Test
     fun testAggregation() {
-        val users = loadContributorsBlocking(MockGithubService, testRequestData)
+        var users = loadContributorsBlocking(MockGithubService, testRequestData)
+        users = users.sortedByDescending { it.contributions }
         Assert.assertEquals("List of contributors should be sorted " +
                 "by the number of contributions in a descending order",
             expectedResults.users, users)

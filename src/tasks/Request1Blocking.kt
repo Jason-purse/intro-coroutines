@@ -20,6 +20,9 @@ fun loadContributorsBlocking(service: GitHubService, req: RequestData) : List<Us
             .also { logUsers(repo, it) }
             .bodyList()
     }.aggregate()
+        .groupBy { it.login }
+        .map { (name,list) -> User(name,list.sumOf { it.contributions }) }
+        .toList()
 }
 
 fun <T> Response<List<T>>.bodyList(): List<T> {
