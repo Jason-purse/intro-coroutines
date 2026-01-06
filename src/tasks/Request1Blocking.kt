@@ -9,7 +9,7 @@ fun loadContributorsBlocking(service: GitHubService, req: RequestData) : List<Us
         .getOrgReposCall(req.org)
         .execute() // Executes request and blocks the current thread
         .also { logRepos(req, it) }
-        .body() ?: listOf()
+        .body() ?: emptyList()
 
     // 将每一个仓库扁平化..
     // 然后在聚合
@@ -26,5 +26,5 @@ fun loadContributorsBlocking(service: GitHubService, req: RequestData) : List<Us
 }
 
 fun <T> Response<List<T>>.bodyList(): List<T> {
-    return body() ?: listOf()
+    return body() ?: emptyList()
 }
