@@ -10,6 +10,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.system.exitProcess
 
 enum class Variant {
+    // BLOCKING 会冻结窗口一段时间
     BLOCKING,         // Request1Blocking
     BACKGROUND,       // Request2Background
     CALLBACKS,        // Request3Callbacks
@@ -50,16 +51,27 @@ interface Contributors: CoroutineScope {
         loadInitialParams()
     }
 
+    /**
+     * 加载贡献者入口
+     */
     fun loadContributors() {
         val (username, password, org, _) = getParams()
         val req = RequestData(username, password, org)
 
         clearResults()
+        // 创建账户(需要vpn,添加一个代理)
         val service = createGitHubService(req.username, req.password)
 
         val startTime = System.currentTimeMillis()
         // 判断选择的变种..
         when (getSelectedVariant()) {
+            // 两个方法都是通过UI 线程进行调用的 ..
+            // 第一个任务帮助你熟悉任务领域。
+            // 目前，每位贡献者的名字会被重复多次，
+            // 代表他们参与的每个项目。实现aggregate()合并用户的功能，
+            // 使每个贡献者只添加一次。
+            // User.contributions属性应包含给定用户对所有项目的总贡献数。
+            // 生成的列表应按贡献数量由高至低排序。
             BLOCKING -> { // Blocking UI thread
                 val users = loadContributorsBlocking(service, req)
                 // blocking .. update

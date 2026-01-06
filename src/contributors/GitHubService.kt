@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -15,7 +16,13 @@ import java.net.Proxy
 import java.net.SocketAddress
 import java.util.Base64
 
+/**
+ * 你将使用 Retrofit 库对 GitHub 执行 HTTP 请求。它允许请求该组织下的仓库列表以及每个仓库的贡献者列表：
+ */
 interface GitHubService {
+
+    // 这两个阻塞式API
+    // 该 API 被loadContributorsBlocking()函数用来获取给定组织的贡献者列表。
     @GET("orgs/{org}/repos?per_page=100")
     fun getOrgReposCall(
         @Path("org") org: String
@@ -70,7 +77,7 @@ fun createGitHubService(username: String, password: String): GitHubService {
     // 开启代理...
     val httpClient = OkHttpClient.Builder()
         .proxy(
-            Proxy(Proxy.Type.HTTP,InetSocketAddress("127.0.0.1",10809))
+            Proxy(Proxy.Type.HTTP,InetSocketAddress("127.0.0.1",7890))
         )
         .addInterceptor { chain ->
             val original = chain.request()

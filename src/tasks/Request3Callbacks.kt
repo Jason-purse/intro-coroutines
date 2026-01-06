@@ -8,6 +8,18 @@ import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 
+/**
+ * 3. 使用 Retrofit callback api
+ *
+ * 在之前的解决方案中，整个加载逻辑被移到了后台线程，但这仍然不是资源的最佳利用方式。
+ * 所有加载请求都是顺序进行的，线程在等待加载结果时被阻塞，而本可以被其他任务占据。
+ * 具体来说，线程可以开始加载另一个请求，以更早接收完整结果。
+ *
+ * 处理每个存储库的数据应分为两部分：加载和处理结果响应。
+ * 第二个处理部分应被提取成回调。
+ *
+ * 每个存储库的加载可以在收到前一个存储库结果之前开始（相应回调被调用）：
+ */
 fun loadContributorsCallbacks(service: GitHubService, req: RequestData, updateResults: (List<User>) -> Unit) {
     service.getOrgReposCall(req.org).onResponse { responseRepos ->
         logRepos(req, responseRepos)
@@ -61,6 +73,11 @@ fun loadContributorsCallbacks(service: GitHubService, req: RequestData, updateRe
 
     }
 }
+
+// Retrofit 回调 API 可以帮助实现这一点。
+// 该函数发Call.enqueue()起 HTTP 请求，并以回调为参数。
+// 在这个回调中，你需要指定每次请求后需要完成的事情。
+
 // kotlin 不允许 inline 函数在非本地上下文中使用本地return ,所以需要crossinline关键字..
 inline fun <T> Call<T>.onResponse(crossinline callback: (Response<T>) -> Unit) {
     enqueue(object : Callback<T> {
